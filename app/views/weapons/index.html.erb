@@ -1,0 +1,9 @@
+<h3>Weapons</h3>
+<ul>
+  <% @weapons.each do |weapon| %>
+  <li>
+    <%= link_to weapon.title, weapon %>
+    <span>Current Power: <%= weapon.current_power %></span>
+  </li>
+  <% end %>
+</ul>
