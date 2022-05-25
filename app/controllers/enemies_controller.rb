@@ -33,7 +33,7 @@ class EnemiesController < ApplicationController
 
   def destroy
     @enemy.destroy
-    head 204
+    render status: 204
   end
 
   private

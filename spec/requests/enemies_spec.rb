@@ -1,109 +1,132 @@
 require 'rails_helper'
 
 RSpec.describe 'Enemies', type: :request do
-  describe 'GET /enemies' do
-    it 'returns the correct attributes' do
-      enemies = create_list(:enemy, FFaker::Random.rand(1..10))
-      get enemies_path
+  describe '#index' do
+    let(:enemies) { create_list(:enemy, FFaker::Random.rand(1..10)) }
+    before(:each) { get enemies_path }
 
-      result = json.first.except('created_at', 'updated_at')
-      expected = enemies.first.attributes.except('created_at', 'updated_at')
-      expect(result).to eq(expected)
-    end
-  end
-
-  describe 'GET /enemies/:id' do
-    context 'when the enemy exists' do
-      it 'returns the correct attributes' do
-        enemy = create(:enemy)
-        get enemy_path(enemy)
-
-        result = json.except('created_at', 'updated_at')
-        expected = enemy.attributes.except('created_at', 'updated_at')
-        expect(result).to eq(expected)
-      end
+    it 'returns with status 200' do
+      expect(response).to have_http_status(:success)
     end
 
-    context 'when the enemy does not exist' do
-      it 'returns a not found message' do
-        get '/enemies/0'
-
-        expect(json).to match('message' => "Couldn't find Enemy with 'id'=0")
+    it 'returns all correct attributes' do
+      json.size.times do |index|
+        expect(json[index]).to eq(enemies[index].as_json)
       end
     end
   end
 
-  describe 'POST /enemies' do
+  describe '#show' do
+    context 'when exists' do
+      let(:enemy) { create(:enemy) }
+      before(:each) { get enemy_path enemy }
+
+      it 'returns with status 200' do
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'returns all correct attributes' do
+        expect(json).to eq(enemy.as_json)
+      end
+    end
+
+    context 'when does not exist' do
+      before(:each) { get '/enemies/0' }
+
+      it 'returns with status 404' do
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
+  describe '#create' do
     context 'with valid params' do
-      it 'creates a new enemy' do
-        enemy_attributes = attributes_for(:enemy)
-        post enemies_path, params: enemy_attributes
+      let(:valid_params) { attributes_for(:enemy) }
+      before(:each) { post enemies_path, params: valid_params }
 
-        expect(Enemy.find(json['id'])).to have_attributes(enemy_attributes)
+      it 'returns with status 201' do
+        expect(response).to have_http_status(:created)
+      end
+
+      it 'returns with correct attributes' do
+        expect(json).to eq(Enemy.last.as_json)
       end
     end
 
     context 'with invalid params' do
-      it 'does not create a new enemy' do
-        post enemies_path, params: { kind: '', name: '', level: '', power_base: '', power_step: 100 }
+      let(:invalid_params) { attributes_for(:enemy, name: nil) }
+      before(:each) { post enemies_path, params: invalid_params }
 
+      it 'returns with status 422' do
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
   end
 
-  describe 'PUT /enemies' do
-    context 'when the enemy exist' do
+  describe '#update' do
+    context 'when exist' do
       let(:enemy) { create(:enemy) }
-      let(:enemy_attributes) { attributes_for(:enemy) }
 
-      before(:each) { put "/enemies/#{enemy.id}", params: enemy_attributes }
+      context 'with valid params' do
+        let(:valid_params) { attributes_for(:enemy) }
+        before(:each) { put enemy_path enemy, params: valid_params }
 
-      it 'returns status code 200' do
-        expect(response).to have_http_status(200)
+        it 'returns with status 200' do
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'returns with correct attributes' do
+          expect(json).to eq(enemy.reload.as_json)
+        end
       end
 
-      it 'updates the enemy' do
-        expect(enemy.reload).to have_attributes(enemy_attributes)
-      end
+      context 'with invalid params' do
+        let(:invalid_params) { attributes_for(:enemy, name: '') }
+        before(:each) { put enemy_path enemy, params: invalid_params }
 
-      it 'returns the updated enemy' do
-        expect(enemy.reload).to have_attributes(json.except('created_at', 'updated_at'))
+        it 'returns with status 422' do
+          expect(response).to have_http_status(:unprocessable_entity)
+        end
+
+        it 'returns message error' do
+          expect(json['errors']['name']).to include("can't be blank")
+        end
       end
     end
 
-    context 'when the enemy does not exist' do
-      before(:each) { put '/enemies/0', params: { enemy: attributes_for(:enemy) } }
+    context 'when does not exist' do
+      let(:params) { attributes_for(:enemy) }
+      before(:each) { put '/enemies/0', params: { enemy: params } }
 
-      it 'returns status code 404' do
-        expect(response).to have_http_status(404)
+      it 'returns with status 404' do
+        expect(response).to have_http_status(:not_found)
       end
 
-      it 'returns a not found message' do
+      it 'returns message error' do
         expect(response.body).to match(/Couldn't find Enemy/)
       end
     end
   end
 
-  describe 'DELETE /enemies' do
-    context 'when the enemy exist' do
+  describe '#destroy' do
+    context 'when exist' do
       let(:enemy) { create(:enemy) }
-      before(:each) { delete "/enemies/#{enemy.id}" }
+      before(:each) { delete enemy_path enemy }
 
-      it 'returns status code 204' do
+      it 'returns with status 204' do
         expect(response).to have_http_status(204)
       end
 
-      it 'destroy the enemy' do
-        expect { enemy.reload }.to raise_error ActiveRecord::RecordNotFound
+      it 'checks if enemy was deleted' do
+        expect(Enemy.find_by(id: enemy.id)).to be_nil
       end
     end
 
-    context 'when the enemy does not exist' do
+    context 'when does not exist' do
       before(:each) { delete '/enemies/0' }
 
-      it 'returns status code 404' do
-        expect(response).to have_http_status(404)
+      it 'returns with status 404' do
+        expect(response).to have_http_status(:not_found)
       end
 
       it 'returns a not found message' do
