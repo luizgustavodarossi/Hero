@@ -1,5 +1,27 @@
 class EnemiesController < ApplicationController
-  before_action :set_enemy
+  before_action :set_enemy, only: %i[show update destroy]
+
+  def index
+    @enemies = Enemy.all
+
+    render json: @enemies
+  end
+
+  def show
+    @enemy = Enemy.find(params[:id])
+
+    render json: @enemy
+  end
+
+  def create
+    @enemy = Enemy.new(enemy_params)
+
+    if @enemy.save
+      render json: @enemy, status: :created
+    else
+      render json: @enemy.errors, status: :unprocessable_entity
+    end
+  end
 
   def update
     if @enemy.update(enemy_params)
